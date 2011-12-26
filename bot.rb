@@ -5,8 +5,18 @@ require 'mtgox'
 $:.unshift '.'
 require 'settings'
 
+def format_log_entry(msg)
+  "#{Time.now.to_s} #{msg}"
+end
+
 def log(msg)
-  puts "#{Time.now.to_s} #{msg}"
+  puts format_log_entry(msg)
+end
+
+def log_file(msg)
+  open("bot.log", "a") do |l|
+    l.puts format_log_entry(msg)
+  end
 end
 
 def retry_forever
@@ -15,7 +25,7 @@ def retry_forever
       return yield
     rescue Exception => e
       log("Exception: #{e.message}")
-      log("Backtrace: #{e.backtrace}")
+      log_file("Backtrace: #{e.backtrace}")
       sleep 1
     end
   end
