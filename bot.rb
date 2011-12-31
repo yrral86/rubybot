@@ -123,6 +123,8 @@ end
 
 class OrderManager
   def initialize
+    @positions = {}
+    @position_sizes = {}
     @exchange = ExchangeInterface.new(BotSettings::DRY_RUN)
     @start_time = Time.now
     reset
@@ -137,7 +139,7 @@ class OrderManager
     trade_data = @exchange.get_trade_data
     @start_btc = trade_data[:btc]
     @start_usd = trade_data[:usd]
-    log("BTC: #{@start_btc} USD: #{@start_usd}")
+    log("BTC: #{@start_btc} USD: #{@start_usd}, Starting Price: #{@start_position}")
 
     # Sanity Check
     if get_position(-1) >= ticker[:sell] or get_position(1) <= ticker[:buy]
@@ -156,12 +158,18 @@ class OrderManager
   end
 
   def get_position(index)
-    (@start_position * (1 + BotSettings::INTERVAL)**index).round(BotSettings::DECIMAL_PLACES)
+    @positions[index] ||= (@start_position * (1 + BotSettings::INTERVAL)**index).round(BotSettings::DECIMAL_PLACES)
+  end
+
+  def get_position_size(index)
+    @position_sizes[index] ||=
+      (BotSettings::ORDER_SIZE*(@start_position/get_position(index))+BotSettings::ORDER_SIZE)/2
   end
 
   def place_order(index, type)
     position = get_position(index)
-    order_id = @exchange.place_order(position, BotSettings::ORDER_SIZE, type)
+    size = get_position_size(index)
+    order_id = @exchange.place_order(position, size, type)
     @orders[index] = {:id => order_id, :type => type}
   end
 
