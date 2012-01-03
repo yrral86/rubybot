@@ -127,15 +127,15 @@ class OrderManager
     @position_sizes = {}
     @exchange = ExchangeInterface.new(BotSettings::DRY_RUN)
     @start_time = Time.now
-    reset
+    @exchange.cancel_all_orders
   end
 
-  def reset
-    @exchange.cancel_all_orders
+  def reset(start_position=nil)
     @orders = {}
 
     ticker = @exchange.get_ticker
-    @start_position = ticker[:last]
+    @start_position = start_position
+    @start_position ||= ticker[:last]
     trade_data = @exchange.get_trade_data
     @start_btc = trade_data[:btc]
     @start_usd = trade_data[:usd]
@@ -237,7 +237,23 @@ class OrderManager
     end
   end
 
+  def wait_for_price(price, mode=:gt)
+    log("waiting for price: $#{price}/BTC")
+    price_hit = false
+    until price_hit
+      ticker = @exchange.get_ticker
+      log("last price: #{ticker[:last]} target_price: #{price}")
+      if mode == :gt
+        price_hit = true if ticker[:last] >= price
+      elsif mode == :lt
+        price_hit = true if ticker[:last] <= price
+      end
+      sleep 60
+    end
+  end
+
   def run_loop
+    reset
     @fast_checks = 0
     while true
       if @fast_checks > 0
@@ -273,4 +289,5 @@ class OrderManager
 end
 
 om = OrderManager.new
+om.wait_for_price(5.40)
 om.run_loop
