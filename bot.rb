@@ -1,6 +1,5 @@
-#!/usr/bin/env ruby
-
 require 'mtgox'
+require 'active_support/core_ext/module'
 
 $:.unshift '.'
 require 'settings'
@@ -25,8 +24,12 @@ def retry_forever
       return yield
     rescue Exception => e
       log("Exception: #{e.message}")
-      log_file("Backtrace: #{e.backtrace}")
-      sleep 1
+      log_file("Exception: #{e.message}")
+      log_file("Backtrace:")
+      e.backtrace.each do |bt|
+        log_file bt
+      end
+      sleep 5
     end
   end
 end
@@ -44,6 +47,14 @@ module MtGox
         post('/api/0/sellBTC.php', {:amount => amount, :price => price})['oid']
       end
     end
+
+    private
+    def request_with_error_checking(method, path, options)
+      request_without_error_checking(method, path, options).tap{|x|
+        puts x if x['error']
+      }
+    end
+    alias_method_chain :request, :error_checking
   end
 end
 
@@ -56,6 +67,10 @@ class ExchangeInterface
     end
     @client = MtGox
     @decimals = 5
+  end
+
+  def new_deposit_address
+    retry_forever {@client.address};
   end
 
   def cancel_all_orders
@@ -128,6 +143,17 @@ class OrderManager
     @exchange = ExchangeInterface.new(BotSettings::DRY_RUN)
     @start_time = Time.now
     @exchange.cancel_all_orders
+    @thread_pool = []
+  end
+
+  def join
+    @thread_pool.each do |t|
+      t.join
+    end
+  end
+
+  def new_deposit_address
+    @exchange.new_deposit_address
   end
 
   def reset(start_position=nil)
@@ -170,7 +196,7 @@ class OrderManager
     position = get_position(index)
     size = get_position_size(index)
     order_id = @exchange.place_order(position, size, type)
-    @orders[index] = {:id => order_id, :type => type}
+    @orders[index] = {:id => order_id, :type => type, :price => position}
   end
 
   def check_orders
@@ -178,6 +204,7 @@ class OrderManager
     order_ids = trade_data[:orders].collect {|o| o.id}
     old_orders = @orders.dup
     print_status = false
+    order_price = 0
 
     old_orders.each_pair do |index, order|
       unless order_ids.include? order[:id]
@@ -190,6 +217,7 @@ class OrderManager
           place_order(index - 1, :buy)
         end
         print_status = true
+        order_price = order[:price]
       end
     end
 
@@ -219,7 +247,7 @@ class OrderManager
       high_index = max(@orders.keys)
       if num_sells == 0
         # No sell orders left, leave a gap
-        low_index += 1
+        high_index += 1
       end
       Range.new(1, BotSettings::ORDER_PAIRS - num_sells).each do |i|
         place_order(high_index + i, :sell)
@@ -234,6 +262,7 @@ class OrderManager
       usd_profit = usd - @start_usd
       base_price = usd_profit.abs/btc_profit.abs
       log("Profit: #{btc_profit} BTC #{usd_profit} USD, Base Price: #{base_price}, Run Time: #{Time.now - @start_time}")
+      log_file("#{btc_profit},#{usd_profit},#{order_price},#{Time.now - @start_time}")
     end
   end
 
@@ -242,17 +271,37 @@ class OrderManager
     price_hit = false
     until price_hit
       ticker = @exchange.get_ticker
-      log("last price: #{ticker[:last]} target_price: #{price}")
       if mode == :gt
         price_hit = true if ticker[:last] >= price
       elsif mode == :lt
         price_hit = true if ticker[:last] <= price
       end
-      sleep 60
+      sleep 20
+    end
+  end
+
+  def stop_order(price, amount, type)
+    log("stop order: #{type.capitalize} #{amount}BTC@$#{price}")
+    @thread_pool << Thread.new do
+      ticker = @exchange.get_ticker
+      if type == :buy
+        mode = :gt
+        order_price = 100000
+      elsif type == :sell
+        mode = :lt
+        order_price = 0.000001
+      end
+      wait_for_price(price, mode)
+      log("executing stop order: #{type.capitalize} #{amount}BTC@$#{price}")
+      @exchange.place_order(order_price, amount, type)
     end
   end
 
   def run_loop
+    log_file("\n\n\nNew run")
+    log_file("ORDER_PAIRS,ORDER_SIZE,INTERVAL")
+    log_file("#{BotSettings::ORDER_PAIRS},#{BotSettings::ORDER_SIZE},#{BotSettings::INTERVAL}")
+    log_file("btc_profit,usd_profit,last_trade_price,time")
     reset
     @fast_checks = 0
     while true
@@ -289,5 +338,12 @@ class OrderManager
 end
 
 om = OrderManager.new
-om.wait_for_price(5.40)
+puts om.new_deposit_address
+#om.wait_for_price(100, :lt)
+#om.wait_for_price(120, :gt)
+#om.stop_order(6.65, 15, :buy)
+#om.stop_order(5.95, 15, :sell)
+#om.stop_order(4.84, 0.01, :sell)
+#om.stop_order(4.845, 0.01, :buy)
 om.run_loop
+om.join

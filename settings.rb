@@ -9,6 +9,6 @@ module BotSettings
   DECIMAL_PLACES = 5
 
   ORDER_PAIRS = 3
-  ORDER_SIZE = 7.5
-  INTERVAL = 0.015
+  ORDER_SIZE = 0.02
+  INTERVAL = 0.005
 end
