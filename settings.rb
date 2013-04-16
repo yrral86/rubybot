@@ -6,6 +6,8 @@ module BotSettings
   DRY_BTC = 100
   DRY_USD = 400
 
+  DEBUG = true
+
   DECIMAL_PLACES = 5
 
   ORDER_PAIRS = 3

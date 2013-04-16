@@ -7,6 +7,7 @@ class ExchangeInterface
     end
     @client = MtGox
     @decimals = 5
+    puts "initialized ExchangeInterface" if BotSettings::DEBUG
   end
 
   def new_deposit_address

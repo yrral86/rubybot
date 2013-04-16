@@ -6,6 +6,7 @@ class OrderManager
     @start_time = Time.now
     @exchange.cancel_all_orders
     @thread_pool = []
+    puts "initialized OrderManager" if BotSettings::DEBUG
   end
 
   def join
