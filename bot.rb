@@ -166,6 +166,7 @@ class OrderManager
     @start_btc = trade_data[:btc]
     @start_usd = trade_data[:usd]
     log("BTC: #{@start_btc} USD: #{@start_usd}, Starting Price: #{@start_position}")
+    log_file("BTC: #{@start_btc} USD: #{@start_usd}, Starting Price: #{@start_position}")
 
     # Sanity Check
     if get_position(-1) >= ticker[:sell] or get_position(1) <= ticker[:buy]
@@ -261,7 +262,7 @@ class OrderManager
       btc_profit = btc - @start_btc
       usd_profit = usd - @start_usd
       base_price = usd_profit.abs/btc_profit.abs
-      log("Profit: #{btc_profit} BTC #{usd_profit} USD, Base Price: #{base_price}, Run Time: #{Time.now - @start_time}")
+      log("\n\nProfit: #{btc_profit} BTC #{usd_profit} USD, Base Price: #{base_price}, Run Time: #{Time.now - @start_time}\n")
       log_file("#{btc_profit},#{usd_profit},#{order_price},#{Time.now - @start_time}")
     end
   end
