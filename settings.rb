@@ -2,7 +2,7 @@ module BotSettings
   KEY = 'key_goes_here'
   SECRET = 'secret_goes_here'
 
-  DRY_RUN = false
+  DRY_RUN = true
   DRY_BTC = 100
   DRY_USD = 400
 
