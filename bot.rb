@@ -1,6 +1,5 @@
 $:.unshift '.'
 require 'settings'
-require 'mtgox_client'
 require 'exchange_interface'
 require 'order_manager'
 

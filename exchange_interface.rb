@@ -1,3 +1,5 @@
+require 'mtgox_client'
+
 class ExchangeInterface
   def initialize(dry_run=false)
     @dry_run = dry_run
@@ -6,8 +8,9 @@ class ExchangeInterface
       c.secret = BotSettings::SECRET
     end
     @client = MtGox
-    @decimals = 5
+    @decimals = BotSettings::DECIMAL_PLACES
     puts "initialized ExchangeInterface" if BotSettings::DEBUG
+    self
   end
 
   def new_deposit_address
@@ -72,7 +75,9 @@ class ExchangeInterface
 
   private
   def order_array
+    puts "in order_array" if BotSettings::DEBUG
     o = retry_forever {@client.orders}
+    puts "orders = #{o.inspect}" if BotSettings::DEBUG
     o[:buys] + o[:sells]
   end
 end

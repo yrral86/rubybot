@@ -7,6 +7,7 @@ class OrderManager
     @exchange.cancel_all_orders
     @thread_pool = []
     puts "initialized OrderManager" if BotSettings::DEBUG
+    self
   end
 
   def join
@@ -80,8 +81,8 @@ class OrderManager
         else
           place_order(index - 1, :buy)
         end
-        print_status = true
         order_price = order[:price]
+        print_status(trade_data, order_price)
       end
     end
 
@@ -117,9 +118,9 @@ class OrderManager
         place_order(high_index + i, :sell)
       end
     end
+  end
 
-
-    if print_status
+  def print_status(trade_data, order_price)
       btc = trade_data[:btc]
       usd = trade_data[:usd]
       btc_profit = btc - @start_btc
@@ -127,7 +128,6 @@ class OrderManager
       base_price = usd_profit.abs/btc_profit.abs
       log("\n\nProfit: #{btc_profit} BTC #{usd_profit} USD, Base Price: #{base_price}, Run Time: #{Time.now - @start_time}\n")
       log_file("#{btc_profit},#{usd_profit},#{order_price},#{Time.now - @start_time}")
-    end
   end
 
   def wait_for_price(price, mode=:gt)
